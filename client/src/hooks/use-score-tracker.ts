@@ -38,6 +38,7 @@ const defaultState: ScoreState = {
   players: [],
   currentPlayerId: null,
   settings: {
+    penaltyValue: 100,
     penaltyValue: 10,
     sortByScore: false,
   },
@@ -52,6 +53,7 @@ type Action =
   | { type: "NEXT_PLAYER" }
   | { type: "ADJUST_SCORE"; payload: { playerId: string; delta: number } }
   | { type: "SET_PENALTY"; payload: { penaltyValue: number } }
+  | { type: "APPLY_PENALTY"; payload: { currentPlayerId: string; penaltyValue?: number } }
   | { type: "APPLY_PENALTY"; payload: { currentPlayerId: string } }
   | { type: "NEW_GAME" }
   | { type: "RESET_ALL" }
@@ -197,6 +199,7 @@ function reducer(state: StateWithHistory, action: Action): StateWithHistory {
     }
     case "SET_PENALTY": {
       const penaltyValue = Number.isFinite(action.payload.penaltyValue)
+        ? Math.max(0, Math.abs(Math.trunc(action.payload.penaltyValue)))
         ? Math.max(0, Math.trunc(action.payload.penaltyValue))
         : state.present.settings.penaltyValue;
       const nextState: ScoreState = {
@@ -209,6 +212,14 @@ function reducer(state: StateWithHistory, action: Action): StateWithHistory {
       if (state.present.players.length === 0) return state;
       const keeper = state.present.players.find((p) => p.id === action.payload.currentPlayerId);
       if (!keeper) return state;
+      const penalty = Math.max(
+        0,
+        Math.abs(
+          Math.trunc(
+            action.payload.penaltyValue ?? state.present.settings.penaltyValue,
+          ),
+        ),
+      );
       const penalty = Math.max(0, Math.trunc(state.present.settings.penaltyValue));
       const updatedPlayers = state.present.players.map((p) =>
         p.id === keeper.id ? p : { ...p, score: p.score - penalty },
@@ -254,6 +265,7 @@ function reducer(state: StateWithHistory, action: Action): StateWithHistory {
         players: normalizedPlayers,
         currentPlayerId: ensureCurrentPlayer(normalizedPlayers, action.payload.currentPlayerId),
         settings: {
+          penaltyValue: Math.max(0, Math.abs(Math.trunc(action.payload.settings?.penaltyValue ?? defaultState.settings.penaltyValue))),
           penaltyValue: Math.max(0, Math.trunc(action.payload.settings?.penaltyValue ?? defaultState.settings.penaltyValue)),
           sortByScore: Boolean(action.payload.settings?.sortByScore),
         },
@@ -307,6 +319,7 @@ function getInitialState(): StateWithHistory {
         players: normalizedPlayers,
         currentPlayerId: ensureCurrentPlayer(normalizedPlayers, parsed.currentPlayerId ?? null),
         settings: {
+          penaltyValue: Math.max(0, Math.abs(Math.trunc(parsed.settings?.penaltyValue ?? defaultState.settings.penaltyValue))),
           penaltyValue: Math.max(0, Math.trunc(parsed.settings?.penaltyValue ?? defaultState.settings.penaltyValue)),
           sortByScore: Boolean(parsed.settings?.sortByScore),
         },
@@ -329,6 +342,7 @@ export function useScoreTracker() {
     return () => clearTimeout(handle);
   }, [state.present]);
 
+  const sortedPlayers = useMemo(() => state.present.players, [state.present.players]);
   const sortedPlayers = useMemo(() => {
     if (!state.present.settings.sortByScore) return state.present.players;
     return [...state.present.players].sort((a, b) => b.score - a.score || a.name.localeCompare(b.name));
@@ -347,6 +361,8 @@ export function useScoreTracker() {
     goToNextPlayer: () => dispatch({ type: "NEXT_PLAYER" }),
     adjustScore: (playerId: string, delta: number) => dispatch({ type: "ADJUST_SCORE", payload: { playerId, delta } }),
     setPenalty: (penaltyValue: number) => dispatch({ type: "SET_PENALTY", payload: { penaltyValue } }),
+    applyPenalty: (currentPlayerId: string, penaltyValue?: number) =>
+      dispatch({ type: "APPLY_PENALTY", payload: { currentPlayerId, penaltyValue } }),
     applyPenalty: (currentPlayerId: string) => dispatch({ type: "APPLY_PENALTY", payload: { currentPlayerId } }),
     resetScores: () => dispatch({ type: "NEW_GAME" }),
     resetAll: () => dispatch({ type: "RESET_ALL" }),

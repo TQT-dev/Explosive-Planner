@@ -8,7 +8,6 @@ import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { toast } from "@/hooks/use-toast";
 import {
   ArrowDown,
@@ -73,6 +72,8 @@ function validateImportedState(raw: unknown): ScoreState | null {
     settings: {
       penaltyValue:
         Number.isFinite(data.settings?.penaltyValue) && data.settings?.penaltyValue !== undefined
+          ? Math.max(0, Math.abs(Math.trunc(data.settings.penaltyValue)))
+          : 100,
           ? Math.max(0, Math.trunc(data.settings.penaltyValue))
           : 10,
       sortByScore: Boolean(data.settings?.sortByScore),
@@ -104,11 +105,13 @@ export default function ScoreTracker() {
   const [newPlayer, setNewPlayer] = useState({ name: "", color: "", icon: "" });
   const [customValues, setCustomValues] = useState<Record<string, string>>({});
   const [isImporting, setIsImporting] = useState(false);
+  const [customPenalty, setCustomPenalty] = useState("");
   const currentPlayer = useMemo(
     () => state.players.find((p) => p.id === state.currentPlayerId) ?? state.players[0] ?? null,
     [state.currentPlayerId, state.players],
   );
 
+  const currentPlayerActions = [100, 500, 1000];
   const currentPlayerActions = [1, 5, 10];
 
   const handleAddPlayer = () => {
@@ -183,11 +186,20 @@ export default function ScoreTracker() {
     }
   };
 
+  const onApplyPenalty = (penaltyOverride?: number) => {
   const onApplyPenalty = () => {
     if (!currentPlayer) {
       toast({ title: "Geen speler geselecteerd" });
       return;
     }
+    const valueToUse = penaltyOverride ?? state.settings.penaltyValue;
+    applyPenalty(currentPlayer.id, valueToUse);
+    if (penaltyOverride !== undefined) {
+      setPenalty(Math.abs(penaltyOverride));
+    }
+    toast({
+      title: "Doodshoofdeiland uitgevoerd",
+      description: `- ${Math.abs(valueToUse)} voor iedereen behalve ${currentPlayer.name}`,
     applyPenalty(currentPlayer.id);
     toast({
       title: "Doodshoofdeiland uitgevoerd",
@@ -198,6 +210,23 @@ export default function ScoreTracker() {
   const onAdjustScore = (playerId: string, delta: number) => {
     adjustScore(playerId, delta);
   };
+
+  const onCustomPenaltyApply = () => {
+    const parsed = Number(customPenalty);
+    if (!Number.isFinite(parsed) || parsed === 0) {
+      toast({ title: "Ongeldige penalty", description: "Gebruik een geheel getal anders dan 0." });
+      return;
+    }
+    const magnitude = Math.abs(Math.trunc(parsed));
+    setPenalty(magnitude);
+    onApplyPenalty(magnitude);
+    setCustomPenalty("");
+  };
+
+  const ranking = useMemo(
+    () => [...state.players].sort((a, b) => b.score - a.score || a.name.localeCompare(b.name)),
+    [state.players],
+  );
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 text-slate-100 px-4 pb-12">
@@ -245,6 +274,9 @@ export default function ScoreTracker() {
         <div className="grid gap-4 md:grid-cols-[1.2fr_0.8fr] lg:grid-cols-[1.2fr_0.8fr]">
           <main className="space-y-4">
             <Card className="bg-gradient-to-r from-slate-900/80 to-slate-800/80 border-slate-700">
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <CardTitle className="text-xl">Huidige speler</CardTitle>
+                </CardHeader>
               <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle className="text-xl">Huidige speler</CardTitle>
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -268,12 +300,25 @@ export default function ScoreTracker() {
                       </div>
                     </div>
                     <div className="flex flex-wrap gap-2">
+                      {[100, -100].map((value) => (
+                        <Button
+                          key={`cp-${value}`}
+                          onClick={() => onAdjustScore(currentPlayer.id, value)}
+                          className="gap-1"
+                          size="lg"
+                          variant={value > 0 ? "default" : "secondary"}
+                        >
+                          <Zap className="h-4 w-4" /> {value > 0 ? "+" : ""}
+                          {value}
+                        </Button>
+                      ))}
                       {currentPlayerActions.map((value) => (
                         <Button
                           key={value}
                           onClick={() => onAdjustScore(currentPlayer.id, value)}
                           className="gap-1"
                           size="lg"
+                          variant="default"
                         >
                           <Zap className="h-4 w-4" /> +{value}
                         </Button>
@@ -325,6 +370,35 @@ export default function ScoreTracker() {
                   <CardTitle className="text-lg">Doodshoofdeiland</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
+                  <div className="grid sm:grid-cols-2 gap-2">
+                    {[100, 500, 1000].map((value) => (
+                      <Button
+                        key={`penalty-${value}`}
+                        variant="destructive"
+                        className="gap-2 justify-center"
+                        onClick={() => onApplyPenalty(value)}
+                      >
+                        <Skull className="h-4 w-4" /> -{value}
+                      </Button>
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-[1fr_auto] items-center gap-2">
+                    <div>
+                      <Label htmlFor="penalty">Custom penalty</Label>
+                      <Input
+                        id="penalty"
+                        type="number"
+                        value={customPenalty}
+                        onChange={(e) => setCustomPenalty(e.target.value)}
+                        placeholder="-250"
+                      />
+                    </div>
+                    <Button variant="destructive" className="gap-2" onClick={onCustomPenaltyApply}>
+                      Apply
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Trek de penalty af bij alle spelers behalve de huidige speler. Positieve waarden worden als penalty gebruikt.
                   <div className="grid grid-cols-[1fr_auto] items-center gap-2">
                     <div>
                       <Label htmlFor="penalty">Penalty waarde</Label>
@@ -389,6 +463,19 @@ export default function ScoreTracker() {
                       </div>
                     </div>
 
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      <Button onClick={() => onAdjustScore(player.id, 100)} className="h-12 text-lg">
+                        +100
+                      </Button>
+                      <Button variant="secondary" onClick={() => onAdjustScore(player.id, -100)} className="h-12 text-lg">
+                        -100
+                      </Button>
+                      <Button onClick={() => onAdjustScore(player.id, 500)} className="h-12 text-lg">
+                        +500
+                      </Button>
+                      <Button onClick={() => onAdjustScore(player.id, 1000)} className="h-12 text-lg">
+                        +1000
+                      </Button>
                     <div className="grid grid-cols-3 gap-2">
                       {[1, 5, 10].map((value) => (
                         <Button key={`plus-${value}`} onClick={() => onAdjustScore(player.id, value)} className="h-12 text-lg">
@@ -463,6 +550,48 @@ export default function ScoreTracker() {
           </main>
 
           <aside className="space-y-4">
+            <Card className="bg-slate-900/70 border-slate-800">
+              <CardHeader>
+                <CardTitle className="text-lg">Live ranking</CardTitle>
+              </CardHeader>
+              <CardContent className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="text-muted-foreground">
+                    <tr className="text-left">
+                      <th className="py-1 pr-2">#</th>
+                      <th className="py-1 pr-2">Naam</th>
+                      <th className="py-1 text-right">Score</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800">
+                    {ranking.map((player, index) => (
+                      <tr
+                        key={`rank-${player.id}`}
+                        className={`${
+                          state.currentPlayerId === player.id
+                            ? "bg-primary/10 text-primary"
+                            : index === 0
+                              ? "text-foreground"
+                              : "text-muted-foreground"
+                        }`}
+                      >
+                        <td className="py-1 pr-2 font-semibold">{index + 1}</td>
+                        <td className="py-1 pr-2">{player.name}</td>
+                        <td className="py-1 text-right font-semibold">{player.score}</td>
+                      </tr>
+                    ))}
+                    {ranking.length === 0 && (
+                      <tr>
+                        <td colSpan={3} className="py-2 text-muted-foreground">
+                          Nog geen spelers.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </CardContent>
+            </Card>
+
             <Card className="bg-slate-900/70 border-slate-800">
               <CardHeader>
                 <CardTitle className="text-lg">Actielog (laatste 20)</CardTitle>
