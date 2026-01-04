@@ -21,4 +21,28 @@ export const api = {
       },
     },
   },
+  cards: {
+    draw: {
+      method: 'POST' as const,
+      path: '/api/cards/draw',
+      responses: {
+        200: z.object({ 
+          card: z.string(),
+          effect: z.string()
+        }),
+      },
+    },
+  }
 };
+
+export function buildUrl(path: string, params?: Record<string, string | number>): string {
+  let url = path;
+  if (params) {
+    Object.entries(params).forEach(([key, value]) => {
+      if (url.includes(`:${key}`)) {
+        url = url.replace(`:${key}`, String(value));
+      }
+    });
+  }
+  return url;
+}
