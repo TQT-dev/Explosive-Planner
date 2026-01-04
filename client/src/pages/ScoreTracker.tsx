@@ -74,6 +74,8 @@ function validateImportedState(raw: unknown): ScoreState | null {
         Number.isFinite(data.settings?.penaltyValue) && data.settings?.penaltyValue !== undefined
           ? Math.max(0, Math.abs(Math.trunc(data.settings.penaltyValue)))
           : 100,
+          ? Math.max(0, Math.trunc(data.settings.penaltyValue))
+          : 10,
       sortByScore: Boolean(data.settings?.sortByScore),
     },
     history: Array.isArray(data.history) ? data.history.slice(0, 20) : [],
@@ -96,6 +98,7 @@ export default function ScoreTracker() {
     resetScores,
     setCurrentPlayer,
     setPenalty,
+    toggleSort,
     undo,
   } = useScoreTracker();
 
@@ -109,6 +112,7 @@ export default function ScoreTracker() {
   );
 
   const currentPlayerActions = [100, 500, 1000];
+  const currentPlayerActions = [1, 5, 10];
 
   const handleAddPlayer = () => {
     if (!newPlayer.name.trim()) {
@@ -183,6 +187,7 @@ export default function ScoreTracker() {
   };
 
   const onApplyPenalty = (penaltyOverride?: number) => {
+  const onApplyPenalty = () => {
     if (!currentPlayer) {
       toast({ title: "Geen speler geselecteerd" });
       return;
@@ -195,6 +200,10 @@ export default function ScoreTracker() {
     toast({
       title: "Doodshoofdeiland uitgevoerd",
       description: `- ${Math.abs(valueToUse)} voor iedereen behalve ${currentPlayer.name}`,
+    applyPenalty(currentPlayer.id);
+    toast({
+      title: "Doodshoofdeiland uitgevoerd",
+      description: `- ${state.settings.penaltyValue} voor iedereen behalve ${currentPlayer.name}`,
     });
   };
 
@@ -268,6 +277,13 @@ export default function ScoreTracker() {
                 <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle className="text-xl">Huidige speler</CardTitle>
                 </CardHeader>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="text-xl">Huidige speler</CardTitle>
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Switch id="sortByScore" checked={state.settings.sortByScore} onCheckedChange={toggleSort} />
+                  <Label htmlFor="sortByScore">Sorteer op score</Label>
+                </div>
+              </CardHeader>
               <CardContent className="space-y-4">
                 {currentPlayer ? (
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -307,6 +323,9 @@ export default function ScoreTracker() {
                           <Zap className="h-4 w-4" /> +{value}
                         </Button>
                       ))}
+                      <Button variant="secondary" onClick={() => onAdjustScore(currentPlayer.id, -state.settings.penaltyValue)}>
+                        -{state.settings.penaltyValue}
+                      </Button>
                       <Button variant="outline" onClick={goToNextPlayer} className="gap-2">
                         Volgende speler <ArrowLeftRight className="h-4 w-4" />
                       </Button>
@@ -380,6 +399,23 @@ export default function ScoreTracker() {
                   </div>
                   <p className="text-xs text-muted-foreground">
                     Trek de penalty af bij alle spelers behalve de huidige speler. Positieve waarden worden als penalty gebruikt.
+                  <div className="grid grid-cols-[1fr_auto] items-center gap-2">
+                    <div>
+                      <Label htmlFor="penalty">Penalty waarde</Label>
+                      <Input
+                        id="penalty"
+                        type="number"
+                        min={0}
+                        value={state.settings.penaltyValue}
+                        onChange={(e) => setPenalty(Number(e.target.value))}
+                      />
+                    </div>
+                    <Button variant="destructive" className="gap-2" onClick={onApplyPenalty}>
+                      <Skull className="h-4 w-4" /> Uitvoeren
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Trek de penalty af bij alle spelers behalve de huidige speler.
                   </p>
                 </CardContent>
               </Card>
@@ -440,6 +476,22 @@ export default function ScoreTracker() {
                       <Button onClick={() => onAdjustScore(player.id, 1000)} className="h-12 text-lg">
                         +1000
                       </Button>
+                    <div className="grid grid-cols-3 gap-2">
+                      {[1, 5, 10].map((value) => (
+                        <Button key={`plus-${value}`} onClick={() => onAdjustScore(player.id, value)} className="h-12 text-lg">
+                          +{value}
+                        </Button>
+                      ))}
+                      {[-1, -5, -10].map((value) => (
+                        <Button
+                          key={`minus-${value}`}
+                          variant="secondary"
+                          onClick={() => onAdjustScore(player.id, value)}
+                          className="h-12 text-lg"
+                        >
+                          {value}
+                        </Button>
+                      ))}
                     </div>
 
                     <div className="flex gap-2">
@@ -464,12 +516,14 @@ export default function ScoreTracker() {
                       <Button
                         variant="ghost"
                         onClick={() => reorderPlayer(player.id, "up")}
+                        disabled={state.settings.sortByScore}
                       >
                         <ArrowUp className="h-4 w-4" />
                       </Button>
                       <Button
                         variant="ghost"
                         onClick={() => reorderPlayer(player.id, "down")}
+                        disabled={state.settings.sortByScore}
                       >
                         <ArrowDown className="h-4 w-4" />
                       </Button>
