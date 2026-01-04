@@ -1,0 +1,143 @@
+Prompt (kopieer/plak)
+
+Je bent een senior full-stack developer. Bouw een eenvoudige, snelle score-tracker webapp (PWA-ready) voor het bordspel “1000 Bommen & Granaten”. De app dient uitsluitend om spelers + scores bij te houden en om snelle score-acties te doen tijdens het spel.
+
+Doelplatform
+
+Werkt goed op smartphone (primair) en desktop.
+
+Bij voorkeur: single-page webapp (React + Vite of Next.js, kies één en ga ervoor).
+
+Geen login nodig.
+
+Data blijft lokaal: localStorage (met export/import als JSON).
+
+Kernfunctionaliteit
+1) Spelers beheren
+
+Speler toevoegen (naam verplicht, optioneel kleur/icoon).
+
+Speler verwijderen (met confirm).
+
+Speler volgorde instellen (drag & drop of pijltjes).
+
+Toon duidelijk wie aan beurt is (Current Player).
+
+2) Scoresysteem
+
+Elke speler heeft:
+
+name
+
+score (integer, kan negatief)
+
+Grote +/– knoppen per speler:
+
++1, +5, +10
+
+-1, -5, -10
+
+Ook een “custom” veld: voeg een eigen getal toe/af (bv. +37 of -12).
+
+Undo (minstens 1 stap terug) voor de laatste actie(s).
+
+3) Actie: “Doodshoofdeiland”
+
+Ik wil een speciale actieknop:
+
+Instellingen:
+
+penaltyValue (default bv. 10, maar instelbaar)
+
+Actiegedrag:
+
+Wanneer ik op Doodshoofdeiland druk:
+
+Vraag: “Wie is aan beurt?” (dropdown of gebruik Current Player)
+
+Trek penaltyValue punten af bij alle spelers behalve de Current Player.
+
+Toon na uitvoeren een korte toast/feedback: “-10 voor iedereen behalve X”.
+
+4) Ronde/geschiedenis (light)
+
+Toon een eenvoudige log (laatste 20 acties) zoals:
+
+“Ina +5”
+
+“Thong -10”
+
+“Doodshoofdeiland: iedereen -10 behalve Ina”
+
+Log wordt mee opgeslagen in localStorage.
+
+Undo moet ook de log terugdraaien.
+
+5) Spelbeheer
+
+Knoppen:
+
+“Nieuw spel” (reset scores naar 0, spelers behouden optioneel)
+
+“Reset alles” (spelers + scores wissen)
+
+“Export” (download JSON)
+
+“Import” (upload JSON, valideer structuur)
+
+Veiligheid/validatie:
+
+Geen lege namen
+
+Scores altijd integer
+
+Import: foutmeldingen bij ongeldig bestand
+
+UI/UX eisen
+
+Zeer duidelijk op mobiel:
+
+Spelerkaarten onder elkaar
+
+Grote knoppen
+
+Current Player bovenaan met “Volgende speler” knop (cyclus).
+
+Gebruik een eenvoudige, nette stijl (bv. Tailwind).
+
+Vermijd overbodige animaties; snelheid primeert.
+
+Donkere modus is een plus, maar niet verplicht.
+
+Data model (voorstel)
+
+players: [{ id, name, score, color? }]
+
+currentPlayerId
+
+settings: { penaltyValue }
+
+history: [{ timestamp, type, payload, snapshotBefore? }]
+(Zodat Undo betrouwbaar is; mag ook via stack met previous states.)
+
+Verwachte output
+
+Werkende app met:
+
+duidelijke structuur (components)
+
+nette state management (useReducer of Zustand)
+
+localStorage persist (debounced)
+
+import/export
+
+undo
+
+Extra (optioneel maar handig)
+
+Snelle “+X voor huidige speler” actieknoppen.
+
+Sorteer spelers op score (toggle), maar behoud ook “speelvolgorde” view.
+
+Begin met een korte uitleg hoe ik het lokaal run (npm install / npm run dev) en lever daarna alle relevante codebestanden.
